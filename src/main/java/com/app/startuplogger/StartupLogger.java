@@ -1,15 +1,17 @@
 package com.app.startuplogger;
 
-import java.util.Arrays;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Value;
 
-
+/**
+ * Logs startup info safely for JAR deployments.
+ *
+ * Created by Rajesh.G
+ * Since 2025-04-29
+ */
 @Component
 public class StartupLogger implements CommandLineRunner {
 
@@ -17,10 +19,6 @@ public class StartupLogger implements CommandLineRunner {
 
     private final Environment environment;
     private final StartupInfo startupInfo;
-
-    @Value("${server.port}")
-    private int serverPort;
-
 
     public StartupLogger(Environment environment, StartupInfo startupInfo) {
         this.environment = environment;
@@ -30,25 +28,26 @@ public class StartupLogger implements CommandLineRunner {
     @Override
     public void run(String... args) {
         String[] profiles = environment.getActiveProfiles();
-        String activeProfiles = String.join(", ", profiles);
+        String activeProfiles = profiles.length > 0 ? String.join(", ", profiles) : "default";
+        String serviceName = environment.getProperty("spring.application.name", "UnnamedService");
+        String configMessage = startupInfo.getConfigMessage() != null
+                ? startupInfo.getConfigMessage()
+                : "No config message defined.";
 
-        List<String> validProfiles = Arrays.asList("local", "dev", "qa");
-        boolean showEmojis = Arrays.stream(profiles)
-                .anyMatch(p -> validProfiles.stream().anyMatch(valid -> valid.equalsIgnoreCase(p)));
-
-        String fire = showEmojis ? "🔥" : "";
-        String box = showEmojis ? "📦" : "";
-        String puzzle = showEmojis ? "🧩" : "";
-
-        String serviceName = environment.getProperty("spring.application.name", "UnknownService");
+        String port = environment.getProperty("server.port");
+        String portMessage = (port != null) ? port : "Port not defined in configuration!";
 
         logger.info("========================================");
-        logger.info("  {} Service Name        : {}", puzzle, serviceName);
-        logger.info("  {} Active Profiles     : {}", fire, activeProfiles);
-        logger.info("  {} Config Server Msg   : {}", box, startupInfo.getConfigMessage() != null ?
-                startupInfo.getConfigMessage() : "no messge set!");
-        logger.info("  {} Server Port         : {}", "::", serverPort);  // Replaced with server port
-        logger.info("========================================");
+        logger.info(" Service Name      : {}", serviceName);
+        logger.info(" Active Profiles   : {}", activeProfiles);
+        logger.info(" Config Message    : {}", configMessage);
+        logger.info(" Server Port       : {}", portMessage);
 
+        // Environment-specific log
+        if (activeProfiles.matches("(?i).*\\b(dev|local|qa)\\b.*")) {
+            logger.info(" Environment Info  : DEV/LOCAL/QA mode - debugging features may be active.");
+        }
+
+        logger.info("========================================");
     }
 }
